@@ -1,0 +1,6 @@
+# <file system> <mount point> <type> <options> <dump> <pass>
+/dev/pve/root / ext4 errors=remount-ro 0 1
+UUID=79D1-6E6F /boot/efi vfat defaults 0 1
+/dev/pve/swap none swap sw 0 0
+proc /proc proc defaults 0 0
+/dev/sda2 /mnt/externo ext4 defaults,nofail,x-systemd.device-timeout=20s 0 0

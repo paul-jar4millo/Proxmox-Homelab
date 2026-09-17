@@ -1,0 +1,15 @@
+# secrets / local state — never commit
+*.env
+.env*
+*.key
+*.pem
+*.token
+*secret*
+*password*
+
+# editor / OS noise
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
