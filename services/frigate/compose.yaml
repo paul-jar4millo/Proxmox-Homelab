@@ -1,0 +1,31 @@
+services:
+  frigate:
+    container_name: frigate
+    privileged: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    image: ghcr.io/blakeblackshear/frigate:stable
+    shm_size: 128mb
+    environment:
+      - FRIGATE_MQTT_PASSWORD= <redacted>
+      - FRIGATE_CAMERA_PASSWORD= <redacted>
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./config:/config
+      - /mnt/frigate/media:/media/frigate
+      - ./config/go2rtc_custom:/usr/local/go2rtc/bin/go2rtc:ro
+      - type: tmpfs
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+    ports:
+      - "1984:1984"
+      - "8971:8971"
+      - "5000:5000"       # Internal unauthenticated access
+      - "8554:8554"       # RTSP feeds
+      - "8555:8555/tcp"   # WebRTC over tcp
+      - "8555:8555/udp"   # WebRTC over udp
+
+networks: {}

@@ -1,0 +1,3 @@
+# Weekly OS updates for LXC containers, Saturday 10:00 local time.
+# Script lives in the Proxmox-Homelab repo; log in /var/log/homelab/.
+0 10 * * 6  root  /root/homelab/scripts/update-lxcs.sh

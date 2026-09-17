@@ -1,0 +1,17 @@
+# Managed in Proxmox-Homelab repo (host/fail2ban/). LAN and tailnet are never banned.
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1 192.168.1.0/24 100.64.0.0/10
+backend  = systemd
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+
+[sshd]
+enabled = true
+
+[proxmox]
+enabled      = true
+port         = 8006
+filter       = proxmox
+journalmatch = _SYSTEMD_UNIT=pvedaemon.service
+maxretry     = 3

@@ -1,0 +1,13 @@
+[OPTIONS]
+
+enable: 1
+
+[IPSET management] # Sources allowed to reach SSH, web UI and SPICE on the host
+
+100.64.0.0/10 # tailnet (CGNAT range)
+192.168.1.0/24 # home LAN
+
+[IPSET lan] # Home LAN, used by host rules
+
+192.168.1.0/24
+

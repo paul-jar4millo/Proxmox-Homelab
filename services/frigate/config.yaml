@@ -1,0 +1,90 @@
+go2rtc:
+  streams:
+    cochera_high:
+      - rtsp://<user>:<password>@192.168.1.4:5543/live/channel0
+
+    cochera_sub:
+      - rtsp://<user>:<password>@192.168.1.4:5543/live/channel1
+
+mqtt:
+  host: 192.168.1.100
+  user: paul
+  password: <redacted>
+
+face_recognition:
+  enabled: true
+  model_size: small
+
+  
+cameras:
+  cochera:
+    ffmpeg:
+      hwaccel_args:
+        - -hwaccel
+        - vaapi
+        - -hwaccel_device
+        - /dev/dri/renderD128
+        - -hwaccel_output_format
+        - yuv420p
+      input_args:
+        - -re
+        - -analyzeduration
+        - 1000M
+        - -probesize
+        - 1000M
+        - -rtsp_transport
+        - tcp
+      output_args:
+        record: preset-record-generic-audio-aac
+      inputs:
+        - path: rtsp://127.0.0.1:8554/cochera_sub
+          roles:
+            - detect
+        - path: rtsp://127.0.0.1:8554/cochera_high
+          roles:
+            - record
+    live:
+      streams:
+        Main Stream: cochera_high
+        Sub Stream: cochera_sub
+
+    detect:
+      enabled: true
+      width: 640
+      height: 360
+      fps: 5
+
+    motion:
+      threshold: 47
+      contour_area: 40
+      improve_contrast: false
+
+record:
+  enabled: True
+  continuous:
+    days: 3
+  motion:
+    days: 7
+  alerts:
+    retain:
+      days: 30
+      mode: motion
+  detections:
+    retain:
+      days: 30
+      mode: motion
+
+detectors:
+  ov:
+    type: openvino
+    device: GPU
+
+model:
+  width: 300
+  height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  path: /openvino-model/ssdlite_mobilenet_v2.xml
+  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+
+version: 0.17-0

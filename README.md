@@ -50,10 +50,10 @@ flowchart LR
 
 | ID | Name | Role | Resources |
 |---|---|---|---|
-| 110 | `net-adguard` | DNS for the whole LAN with ad/tracker blocking | 1 vCPU · 1 GB · 6 GB |
+| 110 | `net-adguard` | DNS for the whole LAN with ad/tracker blocking | 1 vCPU · 2 GB · 6 GB |
 | 111 | `net-tailscale` | VPN node for remote access to the LAN | 1 vCPU · 512 MB · 2 GB |
 | 113 | `net-nginx-proxy-manager` | Reverse proxy for internal services | 2 vCPU · 2 GB · 8 GB |
-| 201 | `app-frigate` | NVR with object detection on the iGPU (OpenVINO) | 2 vCPU · 2 GB · 32 + 64 GB media |
+| 201 | `app-frigate` | NVR with object detection on the iGPU (OpenVINO) | 2 vCPU · 3 GB · 32 + 64 GB media |
 | 202 | `app-rustdeskserver` | Self-hosted RustDesk ID/relay server | 1 vCPU · 512 MB · 4 GB |
 
 Naming: `net-*` for network plumbing, `app-*` for user-facing services.
@@ -62,12 +62,20 @@ Naming: `net-*` for network plumbing, `app-*` for user-facing services.
 
 ```
 proxmox/
-├── lxc/      # /etc/pve/lxc/<id>.conf — one file per container
-└── host/     # network interfaces, storage.cfg, datacenter.cfg, fstab, pveversion
+├── lxc/        # /etc/pve/lxc/<id>.conf — one file per container
+└── host/       # interfaces, storage.cfg, fstab, firewall/, sshd_config.d/, fail2ban/, cron.d/
+services/       # config of what runs inside the containers, secrets redacted
+├── adguard/
+├── frigate/
+└── nginx-proxy-manager/
+scripts/
+└── update-lxcs.sh   # weekly OS updates; vzdump backup of each container first
 ```
 
-Files are exact copies of the host's configuration. Nothing here is applied
-automatically yet.
+`proxmox/` files are exact copies of the host's configuration. `services/`
+files are copied out of the containers with passwords, stream credentials and
+private keys replaced by `<redacted>`. Nothing here is applied automatically
+yet.
 
 ## Decisions
 
@@ -80,3 +88,9 @@ automatically yet.
   bind-mounted — still unprivileged.
 - **Static IPs in the guest config**, not DHCP reservations. The router is
   not something I control from a repo yet; `pct config` is.
+- **Host firewall is default-deny.** Only SSH, the web UI, SPICE and ICMP are
+  accepted, and only from the `management` IPSet (home LAN and tailnet).
+  Root SSH is key-only; fail2ban watches both sshd and the Proxmox login.
+- **Updates take a backup first.** `scripts/update-lxcs.sh` runs `vzdump` on
+  each container before `apt dist-upgrade`, so a bad update is a `pct restore`
+  away. It replaced a `curl | bash` cron that ran unreviewed code as root.

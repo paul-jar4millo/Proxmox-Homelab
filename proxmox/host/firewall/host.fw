@@ -1,0 +1,13 @@
+[OPTIONS]
+
+enable: 1
+log_level_in: nolog
+ndp: 1
+
+[RULES]
+
+IN ACCEPT -source +management -p icmp -log nolog # ping from management networks
+IN ACCEPT -source +management -p tcp -dport 22 -log nolog # SSH
+IN ACCEPT -source +management -p tcp -dport 8006 -log nolog # Proxmox web UI
+IN ACCEPT -source +management -p tcp -dport 3128 -log nolog # SPICE proxy
+
