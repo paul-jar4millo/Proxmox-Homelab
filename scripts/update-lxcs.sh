@@ -49,7 +49,8 @@ for id in "${ids[@]}"; do
             apt-get dist-upgrade -y -q \
                 -o Dpkg::Options::=--force-confdef \
                 -o Dpkg::Options::=--force-confold &&
-            apt-get autoremove -y -q'; then
+            apt-get autoremove -y -q &&
+            apt-get clean'; then
         pct exec "$id" -- test -f /var/run/reboot-required \
             && echo "-- $id $name: reboot required" || true
     else

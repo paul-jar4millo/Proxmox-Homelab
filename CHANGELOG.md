@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-17 (later)
+
+- LXC 111 (Tailscale) root filesystem hit 100 % (apt cache + journal on a
+  2 GB disk); Tailscale could no longer write `resolv.conf`. Cleaned, resized
+  to 4 GB, `tailscaled` restarted.
+- `scripts/update-lxcs.sh` now runs `apt-get clean` after upgrading so
+  containers do not accumulate package caches.
+- Revoked the unused `root@pam!terraform` API token and its `TerraformProv`
+  role; will be recreated when Terraform is actually adopted.
+- Nginx Proxy Manager: removed 6 proxy hosts pointing at hosts that no longer
+  exist (docker, pterodactyl, node1, openwebui, ha, externo). 4 remain.
+
 ## 2026-09-17
 
 - Removed the weekly community-scripts `curl | bash` LXC updater from root's
