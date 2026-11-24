@@ -42,12 +42,20 @@ notify() {
 }
 
 fail() { FAILURES+=("$*"); log "FAIL: $*"; }
+
+# A job killed by systemd, shutdown or Ctrl-C is a failure, never a success.
+on_signal() { fail "terminated by SIG$1 before finishing"; exit 1; }
+trap 'on_signal TERM' TERM
+trap 'on_signal INT' INT
+trap 'on_signal HUP' HUP
 warn() { WARNINGS+=("$*"); log "WARN: $*"; }
 
 # Mails a report when anything failed or warned, or when the script died
 # early (set -e). Call as: trap finish EXIT
 finish() {
     local rc=$?
+    # scripts may define cleanup_hook to undo partial work (e.g. vzdump locks)
+    if declare -F cleanup_hook >/dev/null; then cleanup_hook || true; fi
     (( rc != 0 && ${#FAILURES[@]} == 0 )) && FAILURES+=("exited with status $rc (see log)")
     log "=== $JOB_NAME end rc=$rc failures=${#FAILURES[@]} warnings=${#WARNINGS[@]}"
     if (( ${#FAILURES[@]} || ${#WARNINGS[@]} )); then

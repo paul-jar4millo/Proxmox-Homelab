@@ -174,8 +174,18 @@ restic restore latest --tag host-config --target /tmp/restore --include /etc/pve
 2. Create user `rclone`, `/var/lib/rclone` (0700) and `/etc/rclone` (TLS cert,
    key, `htpasswd`) as described in the `services/backup/` file headers.
 3. `runuser -u rclone -- rclone config --config /var/lib/rclone/rclone.conf`:
-   remote `gdrive`, type `drive`, scope `drive.file`, headless authorisation
-   with `rclone authorize "drive"` on a machine with a browser.
+   remote `gdrive`, type `drive`, scope `drive.file`, **own OAuth client ID
+   and secret** (below), headless authorisation with
+   `rclone authorize "drive" "<blob>"` on a machine with a browser.
+
+   An own Google Cloud OAuth client is required. rclone's built-in client is
+   shared by every rclone user and runs out of its per-minute quota
+   (`403 Quota exceeded for quota metric 'Queries'`): the first backup on
+   2026-11-23 uploaded nothing in 15 minutes because of it. Create a project,
+   enable the Google Drive API, configure the consent screen (External, scope
+   `drive.file`) and **publish it to production**, because in testing mode
+   refresh tokens expire after 7 days. Then create an OAuth client of type
+   *Desktop app*.
 4. Install `services/backup/rclone-restic.service` and `restic-maint`, then
    `systemctl enable --now rclone-restic`.
 5. On the host, add a maintenance key:
@@ -188,7 +198,5 @@ restic restore latest --tag host-config --target /tmp/restore --include /etc/pve
   to complete 3-2-1 and make big restores fast.
 - **Immutable offsite copy.** S3 with object lock (Backblaze B2, Wasabi), or a
   PBS 4 S3 datastore, so that even root on the host cannot delete history.
-- **Own Google Cloud OAuth client** for rclone, published to production, to
-  avoid the shared client's rate limits.
 - **External dead-man's switch** (e.g. healthchecks.io) so a host that is
   completely down also raises an alert.

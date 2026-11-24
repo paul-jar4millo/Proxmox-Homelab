@@ -47,7 +47,23 @@ backup_ct() {
         fail "$id $name: backup failed"
     fi
     rm -rf "${VZ_TMP:?}"/*
+    unlock_stale
 }
+
+# An interrupted vzdump can leave a guest with `lock: backup`, which blocks
+# start/stop/config changes. Runs after each guest and from finish().
+unlock_stale() {
+    pgrep -x vzdump >/dev/null && sleep 5
+    pgrep -x vzdump >/dev/null && return 0   # a vzdump still owns the lock
+    local f id
+    for f in /etc/pve/lxc/*.conf; do
+        id=$(basename "$f" .conf)
+        if grep -q '^lock: backup' "$f"; then
+            pct unlock "$id" && warn "CT $id was left locked by vzdump; unlocked"
+        fi
+    done
+}
+cleanup_hook() { unlock_stale; rm -rf "${VZ_TMP:?}"/*; }
 
 backup_host_config() {
     log "-- host config"
