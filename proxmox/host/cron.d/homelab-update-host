@@ -1,0 +1,4 @@
+# Weekly full upgrade of the Proxmox host, Saturday 11:30 (after the guests).
+# Daily security updates come from unattended-upgrades (apt/52homelab-unattended).
+MAILTO=root
+30 11 * * 6  root  /root/homelab/scripts/update-host.sh

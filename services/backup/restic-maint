@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Installed in CT 301 as /usr/local/bin/restic-maint, run as user `rclone`
+# by the host's backup-maintenance.sh. Uses CT 301's own restic key and goes
+# to Google Drive directly (rclone backend), because the REST server the host
+# uses is append-only and refuses deletes.
+set -euo pipefail
+export RESTIC_REPOSITORY=rclone:gdrive:homelab-restic
+export RESTIC_PASSWORD_FILE=/var/lib/rclone/restic-maint.password
+export RCLONE_CONFIG=/var/lib/rclone/rclone.conf
+export XDG_CACHE_HOME=/var/lib/rclone/cache
+
+# Retention (docs/backup.md): 7 daily, 4 weekly, 12 monthly per guest.
+restic forget --group-by host,tags \
+    --keep-daily 7 --keep-weekly 4 --keep-monthly 12 --prune
+restic check --read-data-subset=5%
+restic stats --mode raw-data

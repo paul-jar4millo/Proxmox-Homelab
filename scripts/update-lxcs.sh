@@ -4,22 +4,28 @@
 # rolled back with `pct restore`. Replaces the community-scripts curl|bash
 # cron removed on 2026-09-17.
 #
+# After the run it audits every container (running or not) against the
+# update policy in docs/update-policy.md and mails a report when something
+# failed, a container was skipped, or a guest is on an old OS release.
+#
 # Usage: update-lxcs.sh [vmid ...]   (no args = every running container)
-set -euo pipefail
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+source "$(dirname "$(readlink -f "$0")")/lib/common.sh"
 
 STORAGE=local        # where pre-update backups go
 KEEP=2               # backups kept per container on $STORAGE
 MIN_FREE_GB=25       # refuse to run if the root filesystem has less than this
-LOG=/var/log/homelab/update-lxcs.log
+# Releases a guest is expected to run (docs/update-policy.md). Debian follows
+# the host's own release; Ubuntu follows the current LTS.
+EXPECTED_DEBIAN=$(. /etc/os-release && echo "$VERSION_CODENAME")
+EXPECTED_UBUNTU=noble
 
-mkdir -p "$(dirname "$LOG")"
-exec > >(tee -a "$LOG") 2>&1
-echo "=== $(date -Is) start"
+log_to "$HOMELAB_LOG_DIR/update-lxcs.log"
+trap finish EXIT
+acquire_lock
 
 free_gb=$(( $(df --output=avail -B1 / | tail -1) / 1024**3 ))
 if (( free_gb < MIN_FREE_GB )); then
-    echo "only ${free_gb} GB free on /, need ${MIN_FREE_GB}; aborting"
+    fail "only ${free_gb} GB free on /, need ${MIN_FREE_GB}; no container was updated"
     exit 1
 fi
 
@@ -32,18 +38,18 @@ for id in "${ids[@]}"; do
     ostype=$(pct config "$id" | awk '/^ostype:/ {print $2}')
     case "$ostype" in
         debian|ubuntu) ;;
-        *) echo "-- $id $name: ostype=$ostype, skipped"; continue ;;
+        *) warn "$id $name: ostype=$ostype is not updated by this script"; continue ;;
     esac
 
-    echo "-- $id $name: backup"
+    log "-- $id $name: backup"
     if ! vzdump "$id" --storage "$STORAGE" --mode suspend --compress zstd \
             --prune-backups "keep-last=$KEEP" --quiet 1 \
             --notes-template "pre-update {{guestname}}"; then
-        echo "-- $id $name: backup FAILED, not updating"
+        fail "$id $name: pre-update backup failed, container NOT updated"
         continue
     fi
 
-    echo "-- $id $name: apt"
+    log "-- $id $name: apt"
     if pct exec "$id" -- env DEBIAN_FRONTEND=noninteractive bash -c '
             apt-get update -q &&
             apt-get dist-upgrade -y -q \
@@ -51,10 +57,36 @@ for id in "${ids[@]}"; do
                 -o Dpkg::Options::=--force-confold &&
             apt-get autoremove -y -q &&
             apt-get clean'; then
-        pct exec "$id" -- test -f /var/run/reboot-required \
-            && echo "-- $id $name: reboot required" || true
+        if pct exec "$id" -- test -f /var/run/reboot-required; then
+            warn "$id $name: reboot required"
+        fi
     else
-        echo "-- $id $name: apt FAILED"
+        fail "$id $name: apt upgrade failed"
     fi
 done
-echo "=== $(date -Is) done"
+
+# --- policy audit (docs/update-policy.md) -----------------------------------
+log "-- audit"
+while read -r id status; do
+    name=$(pct config "$id" | awk '/^hostname:/ {print $2}')
+    if [[ $status != running ]]; then
+        warn "$id $name: $status, so it was not updated this week"
+        continue
+    fi
+    if ! read -r os codename < <(pct exec "$id" -- sh -c \
+            '. /etc/os-release; echo "$ID ${VERSION_CODENAME:-unknown}"'); then
+        warn "$id $name: could not read /etc/os-release"
+        continue
+    fi
+    pending=$(pct exec "$id" -- sh -c \
+        'apt-get -s -o Debug::NoLocking=1 dist-upgrade 2>/dev/null | grep -c ^Inst' || true)
+    log "   $id $name: $os $codename, ${pending:-?} packages pending"
+    case "$os" in
+        debian) [[ $codename == "$EXPECTED_DEBIAN" ]] ||
+                    warn "$id $name: Debian $codename, policy is $EXPECTED_DEBIAN (release upgrade needed)" ;;
+        ubuntu) [[ $codename == "$EXPECTED_UBUNTU" ]] ||
+                    warn "$id $name: Ubuntu $codename, policy is $EXPECTED_UBUNTU (release upgrade needed)" ;;
+        *)      warn "$id $name: unknown OS '$os'" ;;
+    esac
+    (( ${pending:-0} == 0 )) || warn "$id $name: still $pending packages pending after the run"
+done < <(pct list | awk 'NR>1 {print $1, $2}')

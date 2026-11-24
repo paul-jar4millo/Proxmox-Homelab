@@ -1,0 +1,7 @@
+# Offsite backups to Google Drive through CT 301. See docs/backup.md.
+#   daily  02:30  every guest + host config        (RPO 24 h)
+#   Sunday 05:00  retention, prune, integrity check, freshness, weekly report
+#                 + restore drill on the first Sunday of the month
+MAILTO=root
+30 2 * * *  root  /root/homelab/scripts/backup-offsite.sh
+0 5 * * 0   root  /root/homelab/scripts/backup-maintenance.sh

@@ -1,0 +1,41 @@
+# CT 301: /etc/systemd/system/rclone-restic.service
+# restic REST API on top of Google Drive. Append-only: clients can add
+# snapshots but cannot delete or overwrite. TLS with a self-signed cert that
+# the host pins (RESTIC_CACERT); basic auth from /etc/rclone/htpasswd.
+[Unit]
+Description=rclone restic REST server (Google Drive, append-only)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/var/lib/rclone/rclone.conf
+
+[Service]
+User=rclone
+Group=rclone
+ExecStart=/usr/bin/rclone serve restic gdrive:homelab-restic \
+    --addr 192.168.1.31:8000 \
+    --append-only \
+    --htpasswd /etc/rclone/htpasswd \
+    --cert /etc/rclone/tls.crt --key /etc/rclone/tls.key \
+    --config /var/lib/rclone/rclone.conf \
+    --cache-dir /var/lib/rclone/cache \
+    --log-level NOTICE
+Restart=on-failure
+RestartSec=30
+
+# rclone rewrites rclone.conf when it refreshes the OAuth token
+ReadWritePaths=/var/lib/rclone
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

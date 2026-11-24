@@ -22,16 +22,4 @@ iface vmbr0 inet static
 	bridge-stp off
 	bridge-fd 0
 
-auto vmbr1
-iface vmbr1 inet manual
-	bridge-ports none
-	bridge-stp off
-	bridge-fd 0
-
-auto vmbr2
-iface vmbr2 inet manual
-	bridge-ports none
-	bridge-stp off
-	bridge-fd 0
-
 source /etc/network/interfaces.d/*

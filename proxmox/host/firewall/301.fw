@@ -1,0 +1,10 @@
+[OPTIONS]
+
+enable: 1
+policy_in: DROP
+log_level_in: nolog
+
+[RULES]
+
+IN ACCEPT -source 192.168.1.5 -p tcp -dport 8000 -log nolog # restic REST API, Proxmox host only
+IN ACCEPT -source +management -p icmp -log nolog # ping
