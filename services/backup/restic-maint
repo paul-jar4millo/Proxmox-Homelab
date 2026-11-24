@@ -4,6 +4,9 @@
 # to Google Drive directly (rclone backend), because the REST server the host
 # uses is append-only and refuses deletes.
 set -euo pipefail
+# pct exec passes the host's environment through; drop the host's restic
+# settings (REST URL, CA cert path, credentials) before setting our own.
+while read -r v; do unset "$v"; done < <(compgen -e | grep '^RESTIC_' || true)
 export RESTIC_REPOSITORY=rclone:gdrive:homelab-restic
 export RESTIC_PASSWORD_FILE=/var/lib/rclone/restic-maint.password
 export RCLONE_CONFIG=/var/lib/rclone/rclone.conf
