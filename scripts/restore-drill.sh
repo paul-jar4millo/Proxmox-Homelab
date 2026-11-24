@@ -17,6 +17,9 @@ drill=9$src
 t0=$SECONDS
 
 cleanup() {
+    # a failed pct restore kills `restic dump` mid-stream, leaving its lock;
+    # unlock removes only locks whose process is gone (or > 30 min old)
+    restic unlock >/dev/null 2>&1 || true
     if pct status "$drill" >/dev/null 2>&1; then
         pct stop "$drill" >/dev/null 2>&1 || true
         pct destroy "$drill" --purge 1 >/dev/null 2>&1 || true
@@ -32,7 +35,11 @@ when=$(jq -r '.[-1].time // empty' <<<"$snap")
 [[ -n $id ]] || { echo "no snapshot for ct-$src"; exit 1; }
 echo "drill: CT $src from snapshot $id ($when) -> CT $drill"
 
-restic dump "$id" "$file" | pct restore "$drill" - --storage local --unique 1 >/dev/null
+# Restoring from a pipe, pct cannot read the disk size from the archive, so
+# --rootfs is required: use the original guest's size (in GiB).
+size=$(pct config "$src" | sed -n 's/^rootfs:.*size=\([0-9]*\)G.*/\1/p')
+restic dump "$id" "$file" |
+    pct restore "$drill" - --rootfs "local:${size:-8}" --unique 1 >/dev/null
 t_restore=$(( SECONDS - t0 ))
 pct set "$drill" --delete net0 --onboot 0 --hostname "drill-$src" \
     --description "restore drill of CT $src, destroyed automatically"

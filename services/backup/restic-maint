@@ -13,7 +13,9 @@ export RCLONE_CONFIG=/var/lib/rclone/rclone.conf
 export XDG_CACHE_HOME=/var/lib/rclone/cache
 
 # Retention (docs/backup.md): 7 daily, 4 weekly, 12 monthly per guest.
-restic forget --group-by host,tags \
+# A live backup holds a lock: wait for it. restic treats a lock left by a
+# killed process as stale after 30 minutes, so 35 minutes always ends.
+restic forget --retry-lock 35m --group-by host,tags \
     --keep-daily 7 --keep-weekly 4 --keep-monthly 12 --prune
-restic check --read-data-subset=5%
+restic check --retry-lock 35m --read-data-subset=5%
 restic stats --mode raw-data

@@ -137,10 +137,18 @@ restic snapshots --tag ct-201 --latest 3       # one guest
 ID=113
 SNAP=$(restic snapshots --tag ct-$ID --latest 1 --json | jq -r '.[-1].short_id')
 FILE=$(restic snapshots --tag ct-$ID --latest 1 --json | jq -r '.[-1].paths[0]')
+SIZE=8   # GiB; from proxmox/lxc/$ID.conf (rootfs size=). Required from a pipe.
 pct stop $ID
-restic dump "$SNAP" "$FILE" | pct restore $ID - --storage local --force 1
+restic dump "$SNAP" "$FILE" | pct restore $ID - --rootfs local:$SIZE --force 1
 pct start $ID
 ```
+
+Mount points with `backup=0` (Frigate's `mp0`) are not in the archive. After
+restoring, compare `pct config $ID` with `proxmox/lxc/$ID.conf` and re-add any
+missing mount point before starting the guest.
+
+Measured: CT 202 restored from Drive in 138 s and booted in 141 s
+(first drill, 2026-11-23).
 
 For CT 201 (Frigate) the Docker images are not in the backup. Run
 `pct exec 201 -- sh -c 'cd /opt/frigate && docker compose pull && docker compose up -d'`.

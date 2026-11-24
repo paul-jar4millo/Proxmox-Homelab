@@ -63,7 +63,8 @@ unlock_stale() {
         fi
     done
 }
-cleanup_hook() { unlock_stale; rm -rf "${VZ_TMP:?}"/*; }
+# `restic unlock` removes only locks whose process is gone (or > 30 min old).
+cleanup_hook() { unlock_stale; rm -rf "${VZ_TMP:?}"/*; restic unlock >/dev/null 2>&1 || true; }
 
 backup_host_config() {
     log "-- host config"
